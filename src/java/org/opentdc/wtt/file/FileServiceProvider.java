@@ -71,7 +71,8 @@ public class FileServiceProvider implements ServiceProvider {
 	// instance variables
 	protected Logger logger = Logger.getLogger(this.getClass().getName());
 
-	public void initStorageProvider() {
+	private void initStorageProvider(
+	) {
 		logger.info("> initStorageProvider()");
 
 		if (companies == null) {
@@ -93,17 +94,19 @@ public class FileServiceProvider implements ServiceProvider {
 	// instance variables
 	private boolean isPersistent = true;
 
-	public FileServiceProvider(ServletContext context, boolean makePersistent) {
+	public FileServiceProvider(
+		ServletContext context,
+		String prefix
+	) {
 		logger.info("> FileImpl()");
 
 		initStorageProvider();
 		
-		isPersistent = makePersistent;
 		if (dataF == null) {
-			dataF = new File(context.getRealPath(DATA_FN));
+			dataF = new File(context.getRealPath("/" + prefix + DATA_FN));
 		}
 		if (seedF == null) {
-			seedF = new File(context.getRealPath(SEED_FN));
+			seedF = new File(context.getRealPath("/" + prefix + SEED_FN));
 		}
 		if (companyIndex.size() == 0) {
 			importJson();
