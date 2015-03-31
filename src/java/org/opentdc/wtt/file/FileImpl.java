@@ -1,3 +1,26 @@
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2015 Arbalo AG
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 package org.opentdc.wtt.file;
 
 import java.io.File;
@@ -12,16 +35,19 @@ import java.io.Writer;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
 
-import org.opentdc.exception.DuplicateException;
-import org.opentdc.exception.InternalServerErrorException;
-import org.opentdc.exception.NotAllowedException;
-import org.opentdc.exception.NotFoundException;
+import org.opentdc.service.exception.DuplicateException;
+import org.opentdc.service.exception.InternalServerErrorException;
+import org.opentdc.service.exception.NotAllowedException;
+import org.opentdc.service.exception.NotFoundException;
+import org.opentdc.util.PrettyPrinter;
 import org.opentdc.wtt.CompanyModel;
-import org.opentdc.wtt.PrettyPrinter;
 import org.opentdc.wtt.ProjectModel;
 import org.opentdc.wtt.ResourceModel;
 import org.opentdc.wtt.ServiceProvider;
@@ -30,19 +56,47 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
-public class FileImpl extends ServiceProvider {
+public class FileImpl implements ServiceProvider {
+	
 	private static final String SEED_FN = "/seed.json";
 	private static final String DATA_FN = "/data.json";
 	private static File dataF = null;
 	private static File seedF = null;
 
+	protected static ArrayList<CompanyModel> companies = null;
+	protected static Map<String, CompanyModel> companyIndex = null;
+	protected static Map<String, ProjectModel> projectIndex = null;
+	protected static ArrayList<String> resources = null;
+	
+	// instance variables
+	protected Logger logger = Logger.getLogger(this.getClass().getName());
+
+	public void initStorageProvider() {
+		logger.info("> initStorageProvider()");
+
+		if (companies == null) {
+			companies = new ArrayList<CompanyModel>();
+		}
+		if (companyIndex == null) {
+			companyIndex = new HashMap<String, CompanyModel>();
+		}
+		if (projectIndex == null) {
+			projectIndex = new HashMap<String, ProjectModel>();
+		}
+		if (resources == null) {
+			resources = new ArrayList<String>();
+		}
+
+		logger.info("initStorageProvider() initialized");
+	}
+	
 	// instance variables
 	private boolean isPersistent = true;
 
 	public FileImpl(ServletContext context, boolean makePersistent) {
 		logger.info("> FileImpl()");
 
-		super.initStorageProvider();
+		initStorageProvider();
 		
 		isPersistent = makePersistent;
 		if (dataF == null) {
@@ -83,7 +137,7 @@ public class FileImpl extends ServiceProvider {
 		}
 		Collections.sort(_companies, CompanyModel.CompanyComparator);
 		for (CompanyModel _c : _companies) {
-			logger.info(PrettyPrinter.companyToString(_c, ""));
+			logger.info(PrettyPrinter.prettyPrintAsJSON(_c));
 		}
 		return _companies;
 	}
@@ -105,7 +159,7 @@ public class FileImpl extends ServiceProvider {
 		}
 		companies.add(newCompany);
 		indexCompany(newCompany);
-		logger.info("createCompany() -> " + PrettyPrinter.companyToString(newCompany, ""));
+		logger.info("createCompany() -> " + PrettyPrinter.prettyPrintAsJSON(newCompany));
 		if (isPersistent) {
 			exportJson(dataF);
 		}
@@ -130,7 +184,7 @@ public class FileImpl extends ServiceProvider {
 			throw new NotFoundException("company with ID <" + id
 					+ "> was not found.");
 		}
-		logger.info("readCompany(" + id + ") -> " + PrettyPrinter.companyToString(_company, ""));
+		logger.info("readCompany(" + id + ") -> " + PrettyPrinter.prettyPrintAsJSON(_company));
 		return _company;
 	}
 
@@ -161,7 +215,7 @@ public class FileImpl extends ServiceProvider {
 				indexProjectRecursively(_p);
 			}
 		}
-		logger.info("updateCompany() -> " + PrettyPrinter.companyToString(_oldCompany, ""));
+		logger.info("updateCompany() -> " + PrettyPrinter.prettyPrintAsJSON(_oldCompany));
 		if (isPersistent) {
 			exportJson(dataF);
 		}
@@ -273,7 +327,7 @@ public class FileImpl extends ServiceProvider {
 			String compId, 
 			ProjectModel newProject)
 					throws DuplicateException {
-		logger.info("createProject(" + compId + ", " + PrettyPrinter.projectToString(newProject, "") + ")");
+		logger.info("createProject(" + compId + ", " + PrettyPrinter.prettyPrintAsJSON(newProject) + ")");
 		if (projectIndex.get(newProject.getId()) != null) {
 			// project with same ID exists already
 			throw new DuplicateException(
@@ -293,7 +347,7 @@ public class FileImpl extends ServiceProvider {
 			String projId, 
 			ProjectModel newProject)
 					throws DuplicateException {
-		logger.info("createProjectAsSubproject(" + compId + ", " + projId + ", " + PrettyPrinter.projectToString(newProject, "") + ")");
+		logger.info("createProjectAsSubproject(" + compId + ", " + projId + ", " + PrettyPrinter.prettyPrintAsJSON(newProject) + ")");
 		if (projectIndex.get(newProject.getId()) != null) {
 			// project with same ID exists already
 			throw new DuplicateException(
@@ -317,7 +371,7 @@ public class FileImpl extends ServiceProvider {
 					+ "> was not found.");
 		}
 		logger.info("readProject(" + projId + ") -> "
-				+ PrettyPrinter.projectToString(_project, ""));
+				+ PrettyPrinter.prettyPrintAsJSON(_project));
 		return _project;
 	}
 
@@ -342,7 +396,7 @@ public class FileImpl extends ServiceProvider {
 			}
 			_oldProject.setResources(newProject.getResources());
 		}
-		logger.info("updateProject(" + compId + ", " + PrettyPrinter.projectToString(_oldProject, "") + ") -> OK");
+		logger.info("updateProject(" + compId + ", " + PrettyPrinter.prettyPrintAsJSON(_oldProject) + ") -> OK");
 		if (isPersistent) {
 			exportJson(dataF);
 		}
@@ -395,7 +449,7 @@ public class FileImpl extends ServiceProvider {
 			long size) {
 		ProjectModel _project = readProject(projId);
 		logger.info("listResources(" + projId + ") -> ");
-		logger.info(PrettyPrinter.resourcesToString(_project.getResources(), "\t"));
+		logger.info(PrettyPrinter.prettyPrintAsJSON(_project.getResources()));
 		return _project.getResources();
 	}
 
@@ -520,7 +574,7 @@ public class FileImpl extends ServiceProvider {
 			try {
 				dataF.createNewFile();
 			} catch (IOException e) {
-				logger.error("importJson(): IO exception when creating file "
+				logger.severe("importJson(): IO exception when creating file "
 						+ dataF.getName());
 				e.printStackTrace();
 			}
@@ -535,13 +589,13 @@ public class FileImpl extends ServiceProvider {
 					throws NotFoundException, NotAllowedException {
 		logger.info("importJson(" + f.getName() + "): importing CompanyData");
 		if (!f.exists()) {
-			logger.error("importJson(" + f.getName()
+			logger.severe("importJson(" + f.getName()
 					+ "): file does not exist.");
 			throw new NotFoundException("File " + f.getName()
 					+ " does not exist.");
 		}
 		if (!f.canRead()) {
-			logger.error("importJson(" + f.getName()
+			logger.severe("importJson(" + f.getName()
 					+ "): file is not readable");
 			throw new NotAllowedException("File " + f.getName()
 					+ " is not readable.");
@@ -560,7 +614,7 @@ public class FileImpl extends ServiceProvider {
 			_companies = _gson.fromJson(_reader, _collectionType);
 			logger.info("importJson(" + f.getName() + "): json data converted");
 		} catch (FileNotFoundException e1) {
-			logger.error("importJson(" + f.getName()
+			logger.severe("importJson(" + f.getName()
 					+ "): file does not exist (2).");
 			e1.printStackTrace();
 		} finally {
@@ -569,7 +623,7 @@ public class FileImpl extends ServiceProvider {
 					_reader.close();
 				}
 			} catch (IOException e) {
-				logger.error("importJson(" + f.getName()
+				logger.severe("importJson(" + f.getName()
 						+ "): IOException when closing the reader.");
 				e.printStackTrace();
 			}
@@ -588,14 +642,14 @@ public class FileImpl extends ServiceProvider {
 			Gson _gson = new GsonBuilder().setPrettyPrinting().create();
 			_gson.toJson(companies, _writer);
 		} catch (FileNotFoundException e) {
-			logger.error("exportJson(" + f.getName() + "): file not found.");
+			logger.severe("exportJson(" + f.getName() + "): file not found.");
 			e.printStackTrace();
 		} finally {
 			if (_writer != null) {
 				try {
 					_writer.close();
 				} catch (IOException e) {
-					logger.error("exportJson(" + f.getName()
+					logger.severe("exportJson(" + f.getName()
 							+ "): IOException when closing the reader.");
 					e.printStackTrace();
 				}
