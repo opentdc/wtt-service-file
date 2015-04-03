@@ -69,7 +69,7 @@ public class FileServiceProvider implements ServiceProvider {
 	protected static ArrayList<String> resources = null;
 	
 	// instance variables
-	protected Logger logger = Logger.getLogger(this.getClass().getName());
+	private static final Logger logger = Logger.getLogger(FileServiceProvider.class.getName());
 
 	private void initStorageProvider(
 	) {
@@ -202,14 +202,14 @@ public class FileServiceProvider implements ServiceProvider {
 	 */
 	@Override
 	public CompanyModel updateCompany(
-			CompanyModel newCompany) 
-					throws NotFoundException {
+		CompanyModel newCompany
+	) throws NotFoundException {
+		logger.info("updateCompany() -> " + PrettyPrinter.prettyPrintAsJSON(newCompany));
 		CompanyModel _oldCompany = companyIndex.get(newCompany.getId());
 		if (_oldCompany == null) {
 			throw new NotFoundException("company with ID <" + newCompany.getId()
 					+ "> was not found.");
-		}
-		else {
+		} else {
 			_oldCompany.setXri(newCompany.getXri());
 			_oldCompany.setTitle(newCompany.getTitle());
 			_oldCompany.setDescription(newCompany.getDescription());
