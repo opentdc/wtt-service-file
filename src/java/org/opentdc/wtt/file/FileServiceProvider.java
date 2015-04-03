@@ -63,34 +63,14 @@ public class FileServiceProvider implements ServiceProvider {
 	private static File dataF = null;
 	private static File seedF = null;
 
-	protected static ArrayList<CompanyModel> companies = null;
-	protected static Map<String, CompanyModel> companyIndex = null;
-	protected static Map<String, ProjectModel> projectIndex = null;
-	protected static ArrayList<String> resources = null;
+	protected static ArrayList<CompanyModel> companies = new ArrayList<CompanyModel>();
+	protected static Map<String, CompanyModel> companyIndex = new HashMap<String, CompanyModel>();
+	protected static Map<String, ProjectModel> projectIndex = new HashMap<String, ProjectModel>();
+	protected static ArrayList<String> resources = new ArrayList<String>();
 	
 	// instance variables
 	private static final Logger logger = Logger.getLogger(FileServiceProvider.class.getName());
 
-	private void initStorageProvider(
-	) {
-		logger.info("> initStorageProvider()");
-
-		if (companies == null) {
-			companies = new ArrayList<CompanyModel>();
-		}
-		if (companyIndex == null) {
-			companyIndex = new HashMap<String, CompanyModel>();
-		}
-		if (projectIndex == null) {
-			projectIndex = new HashMap<String, ProjectModel>();
-		}
-		if (resources == null) {
-			resources = new ArrayList<String>();
-		}
-
-		logger.info("initStorageProvider() initialized");
-	}
-	
 	// instance variables
 	private boolean isPersistent = true;
 
@@ -98,10 +78,6 @@ public class FileServiceProvider implements ServiceProvider {
 		ServletContext context,
 		String prefix
 	) {
-		logger.info("> FileImpl()");
-
-		initStorageProvider();
-		
 		if (dataF == null) {
 			dataF = new File(context.getRealPath("/" + prefix + DATA_FN));
 		}
@@ -111,8 +87,6 @@ public class FileServiceProvider implements ServiceProvider {
 		if (companyIndex.size() == 0) {
 			importJson();
 		}
-
-		logger.info("FileImpl() initialized");
 	}
 
 	/******************************** company *****************************************/
