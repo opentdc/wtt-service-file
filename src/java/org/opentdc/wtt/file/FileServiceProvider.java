@@ -202,10 +202,11 @@ public class FileServiceProvider implements ServiceProvider {
 	 */
 	@Override
 	public CompanyModel updateCompany(
+		String compId,
 		CompanyModel newCompany
 	) throws NotFoundException {
 		logger.info("updateCompany() -> " + PrettyPrinter.prettyPrintAsJSON(newCompany));
-		CompanyModel _oldCompany = companyIndex.get(newCompany.getId());
+		CompanyModel _oldCompany = companyIndex.get(compId);
 		if (_oldCompany == null) {
 			throw new NotFoundException("company with ID <" + newCompany.getId()
 					+ "> was not found.");
@@ -380,16 +381,14 @@ public class FileServiceProvider implements ServiceProvider {
 
 	@Override
 	public ProjectModel updateProject(
-			String compId, 
-			ProjectModel newProject)
-					throws NotFoundException {
-		ProjectModel _oldProject = projectIndex.get(newProject.getId());
+			String compId,
+			String projId,
+			ProjectModel newProject
+	) throws NotFoundException {
+		ProjectModel _oldProject = projectIndex.get(projId);
 		if (_oldProject == null) {
-			// object with same ID does not exist
-			throw new NotFoundException("project with id <"
-					+ newProject.getId() + "> was not found.");
-		}
-		else {
+			throw new NotFoundException();
+		} else {
 			_oldProject.setXri(newProject.getXri());
 			_oldProject.setTitle(newProject.getTitle());
 			_oldProject.setDescription(newProject.getDescription());
