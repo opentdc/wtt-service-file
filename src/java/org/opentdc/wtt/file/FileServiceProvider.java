@@ -36,6 +36,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -97,11 +98,12 @@ public class FileServiceProvider implements ServiceProvider {
 	 */
 	@Override
 	public ArrayList<CompanyModel> listCompanies(
-			boolean asTree,
-			String query, 
-			String queryType, 
-			long position, 
-			long size) {
+		boolean asTree,
+		String query, 
+		String queryType, 
+		int position, 
+		int size
+	) {
 		logger.info("listCompanies(" + asTree + ") -> " + countCompanies() + " companies");
 		// internally, we keep the full data structure with all children
 		// if the client want a flat structure without children, we need to filter accordingly
@@ -128,11 +130,15 @@ public class FileServiceProvider implements ServiceProvider {
 	 */
 	@Override
 	public CompanyModel createCompany(
-			CompanyModel newCompany) 
-					throws DuplicateException {
-		if (companyIndex.get(newCompany.getId()) != null) {
-			throw new DuplicateException("company with ID " + newCompany.getId() + 
-					" exists already.");
+			CompanyModel newCompany
+	) throws DuplicateException {
+		if(newCompany.getId() != null) {
+			if (companyIndex.get(newCompany.getId()) != null) {
+				throw new DuplicateException("company with ID " + newCompany.getId() + 
+						" exists already.");
+			}
+		} else {
+			newCompany.setId();
 		}
 		companies.add(newCompany);
 		indexCompany(newCompany);
@@ -154,8 +160,8 @@ public class FileServiceProvider implements ServiceProvider {
 	 */
 	@Override
 	public CompanyModel readCompany(
-			String id) 
-					throws NotFoundException {
+			String id
+	) throws NotFoundException {
 		CompanyModel _company = companyIndex.get(id);
 		if (_company == null) {
 			throw new NotFoundException("company with ID <" + id
@@ -252,8 +258,9 @@ public class FileServiceProvider implements ServiceProvider {
 			String compId,
 			String query, 
 			String queryType, 
-			long position, 
-			long size) {
+			int position, 
+			int size
+	) {
 		ArrayList<ProjectModel> _projects = new ArrayList<ProjectModel>();
 		for (ProjectModel _p : readCompany(compId).getProjects()) {
 			_projects.add(new ProjectModel(_p, false));
@@ -277,8 +284,9 @@ public class FileServiceProvider implements ServiceProvider {
 			boolean asTree,
 			String query, 
 			String queryType, 
-			long position, 
-			long size) {
+			int position, 
+			int size
+	) {
 		ArrayList<ProjectModel> _projects = readCompany(compId).getProjects();
 		if (asTree == false) {
 			_projects = new ArrayList<ProjectModel>();
@@ -302,17 +310,20 @@ public class FileServiceProvider implements ServiceProvider {
 
 	@Override
 	public ProjectModel createProject(
-			String compId, 
-			ProjectModel newProject)
-					throws DuplicateException {
+		String compId, 
+		ProjectModel newProject
+	) throws DuplicateException {
 		logger.info("createProject(" + compId + ", " + PrettyPrinter.prettyPrintAsJSON(newProject) + ")");
-		if (projectIndex.get(newProject.getId()) != null) {
-			// project with same ID exists already
-			throw new DuplicateException(
-					"Project with ID " + newProject.getId() + " exists already.");
+		if(newProject.getId() != null) {
+			if (projectIndex.get(newProject.getId()) != null) {
+				// project with same ID exists already
+				throw new DuplicateException("Project with ID " + newProject.getId() + " exists already.");
+			}
+		} else {
+			newProject.setId();
 		}
 		indexProjectRecursively(newProject);
-		readCompany(compId).addProject(newProject);
+		readCompany(compId).getProjects().add(newProject);
 		if (isPersistent) {
 			exportJson(dataF);
 		}
@@ -321,18 +332,21 @@ public class FileServiceProvider implements ServiceProvider {
 
 	@Override
 	public ProjectModel createProjectAsSubproject(
-			String compId, 
-			String projId, 
-			ProjectModel newProject)
-					throws DuplicateException {
+		String compId, 
+		String projId, 
+		ProjectModel newProject
+	) throws DuplicateException {
 		logger.info("createProjectAsSubproject(" + compId + ", " + projId + ", " + PrettyPrinter.prettyPrintAsJSON(newProject) + ")");
-		if (projectIndex.get(newProject.getId()) != null) {
-			// project with same ID exists already
-			throw new DuplicateException(
-					"Project with ID " + newProject.getId() + " exists already.");
+		if(newProject.getId() != null) {
+			if (projectIndex.get(newProject.getId()) != null) {
+				// project with same ID exists already
+				throw new DuplicateException("Project with ID " + newProject.getId() + " exists already.");
+			}
+		} else {
+			newProject.setId();
 		}
 		indexProjectRecursively(newProject);
-		readProject(projId).addProject(newProject);
+		readProject(projId).getProjects().add(newProject);
 		if (isPersistent) {
 			exportJson(dataF);
 		}
@@ -381,9 +395,9 @@ public class FileServiceProvider implements ServiceProvider {
 
 	@Override
 	public void deleteProject(
-			String compId, 
-			String projId)
-					throws NotFoundException {
+		String compId, 
+		String projId
+	) throws NotFoundException {
 		CompanyModel _company = readCompany(compId);
 		ProjectModel _project = readProject(projId);
 		
@@ -394,13 +408,23 @@ public class FileServiceProvider implements ServiceProvider {
 		projectIndex.remove(projId);
 		
 		// 3) remove the project from its company (if projId is a top-level project)
-		_company.removeProject(projId);
-		
-		// 4) remove the subproject from its parent-project (if projId is a subproject)
-		for (ProjectModel _p : projectIndex.values()) {
-			_p.removeProject(projId);
+		for(Iterator<ProjectModel> i = _company.getProjects().iterator(); i.hasNext(); ) {
+			ProjectModel project = i.next();
+			if(project.getId() == projId) {
+				i.remove();
+			}
 		}
 		
+		// 4) remove the subproject from its parent-project (if projId is a subproject)
+		for (ProjectModel project : projectIndex.values()) {
+			for(Iterator<ProjectModel> i = project.getProjects().iterator(); i.hasNext(); ) {
+				ProjectModel subProject = i.next();
+				if(subProject.getId() == projId) {
+					i.remove();
+				}
+			}
+		}
+	
 		logger.info("deleteProject(" + compId + ", " + projId + ") -> OK");
 		if (isPersistent) {
 			exportJson(dataF);
@@ -409,20 +433,22 @@ public class FileServiceProvider implements ServiceProvider {
 	
 	@Override
 	public int countProjects(
-			String compId) {
+		String compId
+	) {
 		int _count = readCompany(compId).getProjects().size();
 		logger.info("countProjects(" + compId + ") -> " + _count);
 		return _count;
 	}
-	
+
 	/******************************** resource *****************************************/
 	@Override
 	public ArrayList<ResourceModel> listResources(
 			String projId,
 			String query, 
 			String queryType, 
-			long position, 
-			long size) {
+			int position, 
+			int size
+	) {
 		ProjectModel _project = readProject(projId);
 		logger.info("listResources(" + projId + ") -> ");
 		logger.info(PrettyPrinter.prettyPrintAsJSON(_project.getResources()));
