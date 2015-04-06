@@ -410,7 +410,7 @@ public class FileServiceProvider implements ServiceProvider {
 		// 3) remove the project from its company (if projId is a top-level project)
 		for(Iterator<ProjectModel> i = _company.getProjects().iterator(); i.hasNext(); ) {
 			ProjectModel project = i.next();
-			if(project.getId() == projId) {
+			if(projId.equals(project.getId())) {
 				i.remove();
 			}
 		}
@@ -419,7 +419,7 @@ public class FileServiceProvider implements ServiceProvider {
 		for (ProjectModel project : projectIndex.values()) {
 			for(Iterator<ProjectModel> i = project.getProjects().iterator(); i.hasNext(); ) {
 				ProjectModel subProject = i.next();
-				if(subProject.getId() == projId) {
+				if(projId.equals(subProject.getId())) {
 					i.remove();
 				}
 			}
