@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
@@ -50,7 +51,7 @@ import org.opentdc.service.exception.NotFoundException;
 import org.opentdc.util.PrettyPrinter;
 import org.opentdc.wtt.CompanyModel;
 import org.opentdc.wtt.ProjectModel;
-import org.opentdc.wtt.ResourceModel;
+import org.opentdc.wtt.ResourceRefModel;
 import org.opentdc.wtt.ServiceProvider;
 
 import com.google.gson.Gson;
@@ -98,27 +99,17 @@ public class FileServiceProvider implements ServiceProvider {
 	 */
 	@Override
 	public ArrayList<CompanyModel> listCompanies(
-		boolean asTree,
 		String query, 
 		String queryType, 
 		int position, 
 		int size
 	) {
-		logger.info("listCompanies(" + asTree + ") -> " + countCompanies() + " companies");
-		// internally, we keep the full data structure with all children
-		// if the client want a flat structure without children, we need to filter accordingly
-		ArrayList<CompanyModel> _companies = companies;
-		if (asTree == false) {
-			_companies = new ArrayList<CompanyModel>();
-			for (CompanyModel _c : companies) {
-				_companies.add(new CompanyModel(_c, false));
-			}
-		}
-		Collections.sort(_companies, CompanyModel.CompanyComparator);
-		for (CompanyModel _c : _companies) {
+		logger.info("listCompanies() -> " + countCompanies() + " companies");
+		Collections.sort(companies, CompanyModel.CompanyComparator);
+		for (CompanyModel _c : companies) {
 			logger.info(PrettyPrinter.prettyPrintAsJSON(_c));
 		}
-		return _companies;
+		return companies;
 	}
 
 	/**
@@ -132,16 +123,20 @@ public class FileServiceProvider implements ServiceProvider {
 	public CompanyModel createCompany(
 			CompanyModel newCompany
 	) throws DuplicateException {
-		if(newCompany.getId() != null) {
-			if (companyIndex.get(newCompany.getId()) != null) {
+		logger.info("createCompany(" + newCompany + ")");
+		String _id = newCompany.getId();
+		if (_id == null || _id == "") {
+			_id = UUID.randomUUID().toString();
+		} else {
+			if (companyIndex.get(_id) != null) {
+				// object with same ID exists already
 				throw new DuplicateException("company with ID " + newCompany.getId() + 
 						" exists already.");
 			}
-		} else {
-			newCompany.setId();
 		}
+		newCompany.setId(_id);
 		companies.add(newCompany);
-		indexCompany(newCompany);
+		companyIndex.put(_id, newCompany);
 		logger.info("createCompany() -> " + PrettyPrinter.prettyPrintAsJSON(newCompany));
 		if (isPersistent) {
 			exportJson(dataF);
@@ -191,13 +186,8 @@ public class FileServiceProvider implements ServiceProvider {
 			throw new NotFoundException("company with ID <" + newCompany.getId()
 					+ "> was not found.");
 		} else {
-			_oldCompany.setXri(newCompany.getXri());
 			_oldCompany.setTitle(newCompany.getTitle());
 			_oldCompany.setDescription(newCompany.getDescription());
-			removeProjectsRecursively(_oldCompany.getProjects());
-			for (ProjectModel _p : newCompany.getProjects()) {
-				indexProjectRecursively(_p);
-			}
 		}
 		logger.info("updateCompany() -> " + PrettyPrinter.prettyPrintAsJSON(_oldCompany));
 		if (isPersistent) {
@@ -242,10 +232,6 @@ public class FileServiceProvider implements ServiceProvider {
 		return _count;
 	}
 	
-	private void indexCompany(CompanyModel company) {
-		companyIndex.put(company.getId(), company);
-	}
-
 	/******************************** project *****************************************/
 	/**
 	 * Return the top-level projects of a company without subprojects.
@@ -377,7 +363,6 @@ public class FileServiceProvider implements ServiceProvider {
 		if (_oldProject == null) {
 			throw new NotFoundException();
 		} else {
-			_oldProject.setXri(newProject.getXri());
 			_oldProject.setTitle(newProject.getTitle());
 			_oldProject.setDescription(newProject.getDescription());
 			removeProjectsRecursively(_oldProject.getProjects());
@@ -442,7 +427,7 @@ public class FileServiceProvider implements ServiceProvider {
 
 	/******************************** resource *****************************************/
 	@Override
-	public ArrayList<ResourceModel> listResources(
+	public ArrayList<ResourceRefModel> listResources(
 			String projId,
 			String query, 
 			String queryType, 
@@ -465,14 +450,14 @@ public class FileServiceProvider implements ServiceProvider {
 					throws NotFoundException, DuplicateException {
 		ProjectModel _project = readProject(projId);
 		// check on duplicate
-		for (ResourceModel _resource : _project.getResources()) {
+		for (ResourceRefModel _resource : _project.getResources()) {
 			if (_resource.getId().equals(resourceId)) {
 				throw new DuplicateException(
 						"Resource " + resourceId + " already exists in project" + _project.getId());
 			}
 		}
 		// add the resource
-		_project.getResources().add(new ResourceModel(resourceId));
+		_project.getResources().add(new ResourceRefModel(resourceId));
 		if (isPersistent) {
 			exportJson(dataF);
 		}
@@ -486,7 +471,7 @@ public class FileServiceProvider implements ServiceProvider {
 					throws NotFoundException {
 		ProjectModel _project = readProject(projId);
 		// get the resource resourceId from resources
-		for (ResourceModel _resource : _project.getResources()) {
+		for (ResourceRefModel _resource : _project.getResources()) {
 			if (_resource.getId().equals(resourceId)) {
 				_project.getResources().remove(_resource);
 				if (isPersistent) {
@@ -560,7 +545,7 @@ public class FileServiceProvider implements ServiceProvider {
 		int _resourcesBefore = resources.size();
 		
 		for (CompanyModel _company : companies) {
-			indexCompany(_company);
+			companyIndex.put(_company.getId(), _company);
 			for (ProjectModel _project : _company.getProjects()) {
 				indexProjectRecursively(_project);
 			}
