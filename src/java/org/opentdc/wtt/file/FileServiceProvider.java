@@ -391,8 +391,11 @@ public class FileServiceProvider implements ServiceProvider {
 	}
 
 	@Override
-	public ProjectModel createSubproject(String compId, String projId,
-			ProjectModel project) throws DuplicateException {
+	public ProjectModel createSubproject(
+			String compId, 
+			String projId,
+			ProjectModel project) 
+					throws DuplicateException {
 		readWttProject(projId).addProject(createWttProject(project));
 		logger.info("createProjectAsSubproject(" + compId + ", " + projId + ", " + PrettyPrinter.prettyPrintAsJSON(project) + ")");
 		if (isPersistent) {
@@ -589,16 +592,14 @@ public class FileServiceProvider implements ServiceProvider {
 					throws NotFoundException, NotAllowedException {
 		logger.info("importJson(" + f.getName() + "): importing CompanyData");
 		if (!f.exists()) {
-			logger.severe("importJson(" + f.getName()
+			logger.warning("importJson(" + f.getName()
 					+ "): file does not exist.");
-			throw new NotFoundException("File " + f.getName()
-					+ " does not exist.");
+			return new ArrayList<WttCompany>();
 		}
 		if (!f.canRead()) {
-			logger.severe("importJson(" + f.getName()
+			logger.warning("importJson(" + f.getName()
 					+ "): file is not readable");
-			throw new NotAllowedException("File " + f.getName()
-					+ " is not readable.");
+			return new ArrayList<WttCompany>();
 		}
 		logger.info("importJson(" + f.getName() + "): can read the file.");
 
