@@ -280,20 +280,6 @@ public class FileServiceProvider implements ServiceProvider {
 		return newProject;
 	}
 	
-	@Override
-	public ProjectModel createProjectAsSubproject(
-		String compId, 
-		String projId, 
-		ProjectModel newProject
-	) throws DuplicateException {
-		readWttProject(projId).addProject(createWttProject(newProject));
-		logger.info("createProjectAsSubproject(" + compId + ", " + projId + ", " + PrettyPrinter.prettyPrintAsJSON(newProject) + ")");
-		if (isPersistent) {
-			exportJson(dataF);
-		}
-		return newProject;
-	}
-
 	private WttProject createWttProject(
 			ProjectModel newProject)
 			throws DuplicateException {
@@ -396,6 +382,52 @@ public class FileServiceProvider implements ServiceProvider {
 		return _count;
 	}
 
+	/******************************** subprojects *****************************************/
+	@Override
+	public List<ProjectModel> listSubprojects(String compId, String projId,
+			String query, String queryType, int position, int size) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public ProjectModel createSubproject(String compId, String projId,
+			ProjectModel project) throws DuplicateException {
+		readWttProject(projId).addProject(createWttProject(project));
+		logger.info("createProjectAsSubproject(" + compId + ", " + projId + ", " + PrettyPrinter.prettyPrintAsJSON(project) + ")");
+		if (isPersistent) {
+			exportJson(dataF);
+		}
+		return project;
+	}
+
+	@Override
+	public ProjectModel readSubproject(String compId, String projId,
+			String subprojId) throws NotFoundException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public ProjectModel updateSubproject(String compId, String projId,
+			String subprojId, ProjectModel project) throws NotFoundException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void deleteSubproject(String compId, String projId, String subprojId)
+			throws NotFoundException, InternalServerErrorException {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public int countSubprojects(String compId, String projId) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+	
 	/******************************** resource *****************************************/
 	@Override
 	public List<ResourceRefModel> listResources(
