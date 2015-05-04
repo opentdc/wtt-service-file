@@ -23,16 +23,7 @@
  */
 package org.opentdc.wtt.file;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.Reader;
-import java.io.Writer;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,47 +36,45 @@ import javax.servlet.ServletContext;
 
 import org.opentdc.service.exception.DuplicateException;
 import org.opentdc.service.exception.InternalServerErrorException;
-import org.opentdc.service.exception.NotAllowedException;
 import org.opentdc.service.exception.NotFoundException;
 import org.opentdc.util.PrettyPrinter;
+import org.opentdc.file.AbstractFileServiceProvider;
 import org.opentdc.wtt.CompanyModel;
 import org.opentdc.wtt.ProjectModel;
 import org.opentdc.wtt.ResourceRefModel;
 import org.opentdc.wtt.ServiceProvider;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
-
-public class FileServiceProvider implements ServiceProvider {
-	
-	private static final String SEED_FN = "/seed.json";
-	private static final String DATA_FN = "/data.json";
-	private static File dataF = null;
-	private static File seedF = null;
-
+public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany> implements ServiceProvider {
 	protected static Map<String, WttCompany> companyIndex = null;
 	protected static Map<String, WttProject> projectIndex = null;
 	protected static ArrayList<ResourceRefModel> resources = null;
-	
-	// instance variables
 	private static final Logger logger = Logger.getLogger(FileServiceProvider.class.getName());
-
-	// instance variables
-	private boolean isPersistent = true;
 
 	public FileServiceProvider(
 		ServletContext context,
 		String prefix
-	) {
-		if (dataF == null) {
-			dataF = new File(context.getRealPath("/" + prefix + DATA_FN));
-		}
-		if (seedF == null) {
-			seedF = new File(context.getRealPath("/" + prefix + SEED_FN));
-		}
+	) throws IOException {
+		super(context, prefix);
 		if (companyIndex == null) {
-			importJson();
+			// initialize the indexes
+			companyIndex = new HashMap<String, WttCompany>();
+			projectIndex = new HashMap<String, WttProject>();
+			resources = new ArrayList<ResourceRefModel>();
+
+			List<WttCompany> _companies = importJson();
+			
+			// load the data into the local transient storage recursively
+			for (WttCompany _company : _companies) {
+				companyIndex.put(_company.getCompanyModel().getId(), _company);
+				for (WttProject _project : _company.getProjects()) {
+					indexProjectRecursively(_project);
+				}
+			}
+
+			logger.info("added " 
+					+ companyIndex.size() + " Companies, "
+					+ projectIndex.size() + " Projects, "
+					+ resources.size() + " Resources");
 		}
 	}
 
@@ -140,7 +129,7 @@ public class FileServiceProvider implements ServiceProvider {
 		companyIndex.put(_id, _newCompany);
 		logger.info("createCompany() -> " + PrettyPrinter.prettyPrintAsJSON(newCompany));
 		if (isPersistent) {
-			exportJson(dataF);
+			exportJson(companyIndex.values());
 		}
 		return newCompany;
 	}
@@ -200,7 +189,7 @@ public class FileServiceProvider implements ServiceProvider {
 		}
 		logger.info("updateCompany() -> " + PrettyPrinter.prettyPrintAsJSON(_oldCompany.getCompanyModel()));
 		if (isPersistent) {
-			exportJson(dataF);
+			exportJson(companyIndex.values());
 		}
 		return _oldCompany.getCompanyModel();
 	}
@@ -223,7 +212,7 @@ public class FileServiceProvider implements ServiceProvider {
 
 		logger.info("deleteCompany(" + id + ")");
 		if (isPersistent) {
-			exportJson(dataF);
+			exportJson(companyIndex.values());
 		}
 	}
 
@@ -275,7 +264,7 @@ public class FileServiceProvider implements ServiceProvider {
 		readWttCompany(compId).addProject(createWttProject(newProject));
 		logger.info("createProject(" + compId + ", " + PrettyPrinter.prettyPrintAsJSON(newProject) + ")");
 		if (isPersistent) {
-			exportJson(dataF);
+			exportJson(companyIndex.values());
 		}
 		return newProject;
 	}
@@ -336,9 +325,9 @@ public class FileServiceProvider implements ServiceProvider {
 		}
 		logger.info("updateProject(" + compId + ", " + PrettyPrinter.prettyPrintAsJSON(_oldProject) + ") -> OK");
 		if (isPersistent) {
-			exportJson(dataF);
+			exportJson(companyIndex.values());
 		}
-		return newProject;
+		return _oldProject.getProjectModel();
 	}
 
 	@Override
@@ -369,7 +358,7 @@ public class FileServiceProvider implements ServiceProvider {
 			
 		logger.info("deleteProject(" + compId + ", " + projId + ") -> OK");
 		if (isPersistent) {
-			exportJson(dataF);
+			exportJson(companyIndex.values());
 		}
 	}
 	
@@ -386,8 +375,14 @@ public class FileServiceProvider implements ServiceProvider {
 	@Override
 	public List<ProjectModel> listSubprojects(String compId, String projId,
 			String query, String queryType, int position, int size) {
-		// TODO Auto-generated method stub
-		return null;
+		ArrayList<ProjectModel> _projects = new ArrayList<ProjectModel>();
+		for (WttProject _p : readWttProject(projId).getProjects()) {
+			_projects.add(_p.getProjectModel());
+		}
+		Collections.sort(_projects, ProjectModel.ProjectComparator);
+		logger.info("listSubprojects(" + projId + ") -> " + _projects.size()
+				+ " values");
+		return _projects;
 	}
 
 	@Override
@@ -397,9 +392,9 @@ public class FileServiceProvider implements ServiceProvider {
 			ProjectModel project) 
 					throws DuplicateException {
 		readWttProject(projId).addProject(createWttProject(project));
-		logger.info("createProjectAsSubproject(" + compId + ", " + projId + ", " + PrettyPrinter.prettyPrintAsJSON(project) + ")");
+		logger.info("createSubproject(" + compId + ", " + projId + ", " + PrettyPrinter.prettyPrintAsJSON(project) + ")");
 		if (isPersistent) {
-			exportJson(dataF);
+			exportJson(companyIndex.values());
 		}
 		return project;
 	}
@@ -407,28 +402,61 @@ public class FileServiceProvider implements ServiceProvider {
 	@Override
 	public ProjectModel readSubproject(String compId, String projId,
 			String subprojId) throws NotFoundException {
-		// TODO Auto-generated method stub
-		return null;
+		ProjectModel _p = readWttProject(projId).getProjectModel();
+		logger.info("readSubproject(" + projId + ") -> "
+				+ PrettyPrinter.prettyPrintAsJSON(_p));
+		return _p;
 	}
 
 	@Override
 	public ProjectModel updateSubproject(String compId, String projId,
 			String subprojId, ProjectModel project) throws NotFoundException {
-		// TODO Auto-generated method stub
-		return null;
+		WttProject _oldProject = projectIndex.get(projId);
+		if (_oldProject == null) {
+			throw new NotFoundException("project <" + projId + "> not found");
+		} else {
+			_oldProject.getProjectModel().setTitle(project.getTitle());
+			_oldProject.getProjectModel().setDescription(project.getDescription());
+		}
+		logger.info("updateSubproject(" + compId + ", " + PrettyPrinter.prettyPrintAsJSON(_oldProject) + ") -> OK");
+		if (isPersistent) {
+			exportJson(companyIndex.values());
+		}
+		return _oldProject.getProjectModel();
 	}
 
 	@Override
 	public void deleteSubproject(String compId, String projId, String subprojId)
-			throws NotFoundException, InternalServerErrorException {
-		// TODO Auto-generated method stub
+			throws NotFoundException, InternalServerErrorException { 
+		WttProject _parentProject = readWttProject(projId);
+		WttProject _subProject = readWttProject(subprojId);
 		
+		// 1) remove all subprojects from this project
+		removeProjectsFromIndexRecursively(_subProject.getProjects());
+		
+		// 2) remove the project from the index
+		if (projectIndex.remove(subprojId) == null) {
+			throw new InternalServerErrorException("project <" + subprojId
+					+ "> can not be removed, because it does not exist in the index.");
+		}
+		
+		// 3) remove the subproject from its parent project
+		if (_parentProject.removeProject(_subProject) == false) {
+			throw new InternalServerErrorException("subproject <" + subprojId
+					+ "> can not be removed, because it is an orphan.");
+		}
+			
+		logger.info("deleteSubproject(" + compId + ", " + projId + ", " + subprojId + ") -> OK");
+		if (isPersistent) {
+			exportJson(companyIndex.values());
+		}	
 	}
 
 	@Override
 	public int countSubprojects(String compId, String projId) {
-		// TODO Auto-generated method stub
-		return 0;
+		int _count = readWttProject(projId).getProjects().size();
+		logger.info("countProjects(" + projId + ") -> " + _count);
+		return _count;
 	}
 	
 	/******************************** resource *****************************************/
@@ -468,7 +496,7 @@ public class FileServiceProvider implements ServiceProvider {
 		// TODO: get all other instance variables from Resources-Service
 		_p.addResource(_rrm);
 		if (isPersistent) {
-			exportJson(dataF);
+			exportJson(companyIndex.values());
 		}
 		return resourceId;
 	}
@@ -484,7 +512,7 @@ public class FileServiceProvider implements ServiceProvider {
 			if (_resource.getId().equals(resourceId)) {
 				_project.getResources().remove(_resource);
 				if (isPersistent) {
-					exportJson(dataF);
+					exportJson(companyIndex.values());
 				}
 				logger.info("removeResource(" + projId + ", " + resourceId + ") -> resource removed.");
 				return;
@@ -526,6 +554,7 @@ public class FileServiceProvider implements ServiceProvider {
 	 */
 	private void removeProjectsFromIndexRecursively(
 			List<WttProject> childProjects) {
+		if (childProjects != null) {
 		for (WttProject _project : childProjects) {
 			removeProjectsFromIndexRecursively(_project.getProjects());
 			if ((projectIndex.remove(_project.getProjectModel().getId())) == null) {
@@ -533,128 +562,6 @@ public class FileServiceProvider implements ServiceProvider {
 						+ "> can not be removed, because it does not exist in the index");
 			};
 		}
-	}
-	
-	private void importJson() {
-		// initialize the indexes
-		companyIndex = new HashMap<String, WttCompany>();
-		projectIndex = new HashMap<String, WttProject>();
-		resources = new ArrayList<ResourceRefModel>();
-		ArrayList<WttCompany> _companies = new ArrayList<WttCompany>();
-		
-		// read the data file
-		// either read persistent data from DATA_FN
-		// or seed data from SEED_FN if no persistent data exists
-		if (dataF.exists()) {
-			logger.info("persistent data in file " + dataF.getName()
-					+ " exists.");
-			_companies = importJson(dataF);
-		} else { // seeding the data
-			logger.info("persistent data in file " + dataF.getName()
-					+ " is missing -> seeding from " + seedF.getName());
-			_companies = importJson(seedF);
-		}
-
-		// load the data into the local transient storage recursively
-		int _companiesBefore = companyIndex.size();
-		int _projectsBefore = projectIndex.size();
-		int _resourcesBefore = resources.size();
-		
-		for (WttCompany _company : _companies) {
-			companyIndex.put(_company.getCompanyModel().getId(), _company);
-			for (WttProject _project : _company.getProjects()) {
-				indexProjectRecursively(_project);
-			}
-		}
-
-		logger.info("added " 
-				+ (companyIndex.size() - _companiesBefore) + " Companies, "
-				+ (projectIndex.size() - _projectsBefore) + " Projects,"
-				+ (resources.size() - _resourcesBefore) + " Resources");
-
-		// create the persistent data if it did not exist
-		if (isPersistent && !dataF.exists()) {
-			try {
-				dataF.createNewFile();
-			} catch (IOException e) {
-				logger.severe("importJson(): IO exception when creating file "
-						+ dataF.getName());
-				e.printStackTrace();
-			}
-			exportJson(dataF);
-		}
-		logger.info("importJson(): imported " + _companies.size()
-				+ " wtt objects");
-	}
-
-	private ArrayList<WttCompany> importJson(
-			File f) 
-					throws NotFoundException, NotAllowedException {
-		logger.info("importJson(" + f.getName() + "): importing CompanyData");
-		if (!f.exists()) {
-			logger.warning("importJson(" + f.getName()
-					+ "): file does not exist.");
-			return new ArrayList<WttCompany>();
-		}
-		if (!f.canRead()) {
-			logger.warning("importJson(" + f.getName()
-					+ "): file is not readable");
-			return new ArrayList<WttCompany>();
-		}
-		logger.info("importJson(" + f.getName() + "): can read the file.");
-
-		Reader _reader = null;
-		ArrayList<WttCompany> _companies = null;
-		try {
-			_reader = new InputStreamReader(new FileInputStream(f));
-			
-			Gson _gson = new GsonBuilder().create();
-
-			Type _collectionType = new TypeToken<ArrayList<WttCompany>>() {
-			}.getType();
-			_companies = _gson.fromJson(_reader, _collectionType);
-			logger.info("importJson(" + f.getName() + "): json data converted");
-		} catch (FileNotFoundException e1) {
-			logger.severe("importJson(" + f.getName()
-					+ "): file does not exist (2).");
-			e1.printStackTrace();
-		} finally {
-			try {
-				if (_reader != null) {
-					_reader.close();
-				}
-			} catch (IOException e) {
-				logger.severe("importJson(" + f.getName()
-						+ "): IOException when closing the reader.");
-				e.printStackTrace();
-			}
-		}
-		logger.info("importJson(" + f.getName() + "): " + _companies.size()
-				+ " wtt objects imported.");
-		return _companies;
-	}
-
-	private void exportJson(File f) {
-		logger.info("exportJson(" + f.getName() + "): exporting wtt objects");
-
-		Writer _writer = null;
-		try {
-			_writer = new OutputStreamWriter(new FileOutputStream(f));
-			Gson _gson = new GsonBuilder().setPrettyPrinting().create();
-			_gson.toJson(companyIndex.values(), _writer);
-		} catch (FileNotFoundException e) {
-			logger.severe("exportJson(" + f.getName() + "): file not found.");
-			e.printStackTrace();
-		} finally {
-			if (_writer != null) {
-				try {
-					_writer.close();
-				} catch (IOException e) {
-					logger.severe("exportJson(" + f.getName()
-							+ "): IOException when closing the reader.");
-					e.printStackTrace();
-				}
-			}
 		}
 	}
 }
