@@ -6,8 +6,8 @@ import java.util.List;
 import org.opentdc.wtt.CompanyModel;
 
 public class WttCompany {
-	CompanyModel companyModel;
-	ArrayList<WttProject> projects;
+	private CompanyModel companyModel;
+	private ArrayList<WttProject> projects;
 
 	public WttCompany() {
 	}
