@@ -11,6 +11,8 @@ public class WttProject {
 	ArrayList<ResourceRefModel> resources;
 
 	public WttProject() {
+		projects = new ArrayList<WttProject>();
+		resources = new ArrayList<ResourceRefModel>();
 	}
 
 	public ProjectModel getProjectModel() {
@@ -52,4 +54,21 @@ public class WttProject {
 	public boolean removeResource(ResourceRefModel r) {
 		return this.resources.remove(r);
 	}
+	
+	public boolean removeResource(String rid) {
+		for (ResourceRefModel _r : resources) {
+			if (_r.getId().equalsIgnoreCase(rid)){
+				return this.resources.remove(_r);
+			}
+		}
+		return false;
+	}
+	
+	public void setTitle(String title) {
+		projectModel.setTitle(title);
+	}
+	public void setDescription(String desc) {
+		projectModel.setDescription(desc);
+	}
+
 }
