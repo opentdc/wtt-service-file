@@ -10,6 +10,7 @@ public class WttCompany {
 	private ArrayList<WttProject> projects;
 
 	public WttCompany() {
+		projects = new ArrayList<WttProject>();
 	}
 	
 	public CompanyModel getCompanyModel() {
@@ -34,5 +35,13 @@ public class WttCompany {
 	
 	public boolean removeProject(WttProject p) {
 		return this.projects.remove(p);
+	}
+	
+	public void setTitle(String title) {
+		companyModel.setTitle(title);
+	}
+
+	public void setDescription(String description) {
+		companyModel.setDescription(description);
 	}
 }
