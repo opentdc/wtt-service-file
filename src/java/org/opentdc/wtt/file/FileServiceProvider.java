@@ -26,6 +26,7 @@ package org.opentdc.wtt.file;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,7 @@ import javax.servlet.ServletContext;
 
 import org.opentdc.service.exception.DuplicateException;
 import org.opentdc.service.exception.InternalServerErrorException;
+import org.opentdc.service.exception.NotAllowedException;
 import org.opentdc.service.exception.NotFoundException;
 import org.opentdc.service.exception.ValidationException;
 import org.opentdc.util.PrettyPrinter;
@@ -66,7 +68,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			
 			// load the data into the local transient storage recursively
 			for (WttCompany _company : _companies) {
-				companyIndex.put(_company.getCompanyModel().getId(), _company);
+				companyIndex.put(_company.getModel().getId(), _company);
 				for (WttProject _project : _company.getProjects()) {
 					indexProjectRecursively(_project);
 				}
@@ -95,8 +97,8 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		// Collections.sort(companies, CompanyModel.CompanyComparator);
 		ArrayList<CompanyModel> _companyModels = new ArrayList<CompanyModel>();
 		for (WttCompany _c : companyIndex.values()) {
-			logger.info(PrettyPrinter.prettyPrintAsJSON(_c.getCompanyModel()));
-			_companyModels.add(_c.getCompanyModel());
+			logger.info(PrettyPrinter.prettyPrintAsJSON(_c.getModel()));
+			_companyModels.add(_c.getModel());
 		}
 		logger.info("listCompanies() -> " + _companyModels.size() + " companies");
 		return _companyModels;
@@ -105,16 +107,17 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	/**
 	 * Create a new company.
 	 * 
-	 * @param newCompany
-	 * @return
-	 * @throws InternalServerErrorException
+	 * @param company
+	 * @return the newly created company
+	 * @throws DuplicateException when a company with the same id already exists
+	 * @throws ValidationException when the id was generated on the client
 	 */
 	@Override
 	public CompanyModel createCompany(
-			CompanyModel newCompany
+			CompanyModel company
 	) throws DuplicateException, ValidationException {
-		logger.info("createCompany(" + PrettyPrinter.prettyPrintAsJSON(newCompany) + ")");
-		String _id = newCompany.getId();
+		logger.info("createCompany(" + PrettyPrinter.prettyPrintAsJSON(company) + ")");
+		String _id = company.getId();
 		if (_id == null || _id == "") {
 			_id = UUID.randomUUID().toString();
 		} else {
@@ -128,15 +131,20 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 						"> contains an ID generated on the client. This is not allowed.");
 			}
 		}
-		newCompany.setId(_id);
+		company.setId(_id);
+		Date _date = new Date();
+		company.setCreatedAt(_date);
+		company.setCreatedBy("DUMMY_USER");
+		company.setModifiedAt(_date);
+		company.setModifiedBy("DUMMY_USER");
 		WttCompany _newCompany = new WttCompany();
-		_newCompany.setCompanyModel(newCompany);
+		_newCompany.setModel(company);
 		companyIndex.put(_id, _newCompany);
-		logger.info("createCompany() -> " + PrettyPrinter.prettyPrintAsJSON(newCompany));
+		logger.info("createCompany() -> " + PrettyPrinter.prettyPrintAsJSON(company));
 		if (isPersistent) {
 			exportJson(companyIndex.values());
 		}
-		return newCompany;
+		return company;
 	}
 
 	/**
@@ -145,14 +153,14 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	 * @param id
 	 *            the company ID
 	 * @return the company
-	 * @throws NotFoundException
+	 * @throws NotFoundException when no compan with this id could be found
 	 *             if there exists no company with this ID
 	 */
 	@Override
 	public CompanyModel readCompany(
 			String id
 	) throws NotFoundException {
-		CompanyModel _c = readWttCompany(id).getCompanyModel();
+		CompanyModel _c = readWttCompany(id).getModel();
 		logger.info("readCompany(" + id + ") -> " + PrettyPrinter.prettyPrintAsJSON(_c));
 		return _c;
 	}
@@ -172,26 +180,39 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	/**
 	 * Update a company with new attribute values.
 	 * 
+	 * @param compId the ID of the company to update
 	 * @param newCompany
 	 *            the new version of the company
-	 * @return the new company
+	 * @return the updated company
 	 * @throws NotFoundException
 	 *             if an object with the same ID did not exist
+	 * @throws NotAllowedException if createdAt or createdBy was changed on the client
 	 */
 	@Override
 	public CompanyModel updateCompany(
 		String compId,
 		CompanyModel newCompany
-	) throws NotFoundException {
-		logger.info("updateCompany() -> " + PrettyPrinter.prettyPrintAsJSON(newCompany));
+	) throws NotFoundException, NotAllowedException
+	{
 		WttCompany _c = readWttCompany(compId);
-		_c.setTitle(newCompany.getTitle());
-		_c.setDescription(newCompany.getDescription());
-		logger.info("updateCompany() -> " + PrettyPrinter.prettyPrintAsJSON(_c.getCompanyModel()));
+		CompanyModel _cm = _c.getModel();
+		if (! _cm.getCreatedAt().equals(newCompany.getCreatedAt())) {
+			throw new NotAllowedException("company<" + compId + ">: it is not allowed to change createAt on the client.");
+		}
+		if (! _cm.getCreatedBy().equalsIgnoreCase(newCompany.getCreatedBy())) {
+			throw new NotAllowedException("company<" + compId + ">: it is not allowed to change createBy on the client.");
+		}
+		_cm.setTitle(newCompany.getTitle());
+		_cm.setDescription(newCompany.getDescription());
+		_cm.setModifiedAt(new Date());
+		_cm.setModifiedBy("DUMMY_USER");
+		_c.setModel(_cm);
+		companyIndex.put(compId, _c);
+		logger.info("updateCompany(" + compId + ") -> " + PrettyPrinter.prettyPrintAsJSON(_cm));
 		if (isPersistent) {
 			exportJson(companyIndex.values());
 		}
-		return _c.getCompanyModel();
+		return _cm;
 	}
 
 	@Override
@@ -217,7 +238,11 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	 * Return the top-level projects of a company without subprojects.
 	 * 
 	 * @param compId the company ID
-	 * @return all top-level projects of a company
+	 * @param query
+	 * @param queryType
+	 * @param position
+	 * @param size
+	 * @return all list of all top-level projects of the company
 	 */
 	@Override
 	public ArrayList<ProjectModel> listProjects(
@@ -230,7 +255,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		ArrayList<ProjectModel> _projects = new ArrayList<ProjectModel>();
 		WttCompany _c = readWttCompany(compId);
 		for (WttProject _p : _c.getProjects()) {
-			_projects.add(_p.getProjectModel());
+			_projects.add(_p.getModel());
 		}
 		Collections.sort(_projects, ProjectModel.ProjectComparator);
 		logger.info("listProjects(" + compId + ") -> " + _projects.size()
@@ -242,26 +267,30 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	public ProjectModel createProject(
 		String compId, 
 		ProjectModel newProject
-	) throws DuplicateException {
-		readWttCompany(compId).addProject(createWttProject(newProject));
-		logger.info("createProject(" + compId + ", " + PrettyPrinter.prettyPrintAsJSON(newProject) + ")");
+	) throws DuplicateException, NotFoundException, ValidationException {
+		WttCompany _company = readWttCompany(compId);
+		WttProject _project = createWttProject(newProject);
+		ProjectModel _pm = _project.getModel();
+		projectIndex.put(_pm.getId(), _project);
+		_company.addProject(_project);
+		logger.info("createProject(" + compId + ") -> " + PrettyPrinter.prettyPrintAsJSON(_pm));
 		if (isPersistent) {
 			exportJson(companyIndex.values());
 		}
-		return newProject;
+		return _pm;
 	}
 	
 	private WttProject createWttProject(
-			ProjectModel newProject)
-			throws DuplicateException 
+			ProjectModel project)
+			throws DuplicateException, ValidationException
 	{
-		String _id = newProject.getId();
+		String _id = project.getId();
 		if (_id == null || _id == "") {
 			_id = UUID.randomUUID().toString();
 		} else {
 			if (projectIndex.get(_id) != null) {
 				// project with same ID exists already
-				throw new DuplicateException("project <" + newProject.getId() + 
+				throw new DuplicateException("project <" + project.getId() + 
 						"> exists already.");
 			}
 			else {  // a new ID was set on the client; we do not allow this
@@ -269,10 +298,15 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 						"> contains an ID generated on the client. This is not allowed.");
 			}
 		}
-		newProject.setId(_id);
+		project.setId(_id);
+		Date _date = new Date();
+		project.setCreatedAt(_date);
+		project.setCreatedBy("DUMMY_USER");
+		project.setModifiedAt(_date);
+		project.setModifiedBy("DUMMY_USER");
+
 		WttProject _newWttProject = new WttProject();
-		_newWttProject.setProjectModel(newProject);
-		projectIndex.put(_id, _newWttProject);
+		_newWttProject.setModel(project);
 		return _newWttProject;
 	}
 
@@ -282,7 +316,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			String projId)
 					throws NotFoundException {
 		readWttCompany(compId);
-		ProjectModel _p = readWttProject(projId).getProjectModel();
+		ProjectModel _p = readWttProject(projId).getModel();
 		logger.info("readProject(" + projId + ") -> "
 				+ PrettyPrinter.prettyPrintAsJSON(_p));
 		return _p;
@@ -303,27 +337,35 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	public ProjectModel updateProject(
 			String compId,
 			String projId,
-			ProjectModel newProject
-	) throws NotFoundException {
-		WttProject _oldProject = projectIndex.get(projId);
-		if (_oldProject == null) {
-			throw new NotFoundException("project <" + projId + "> was not found.");
-		} else {
-			_oldProject.getProjectModel().setTitle(newProject.getTitle());
-			_oldProject.getProjectModel().setDescription(newProject.getDescription());
+			ProjectModel project
+	) throws NotFoundException, NotAllowedException {
+		readWttCompany(compId);
+		WttProject _wttProject = readWttProject(projId);
+		ProjectModel _pm = _wttProject.getModel();
+		if (! _pm.getCreatedAt().equals(project.getCreatedAt())) {
+			throw new NotAllowedException("project<" + projId + ">: it is not allowed to change createAt on the client.");
 		}
-		logger.info("updateProject(" + compId + ", " + PrettyPrinter.prettyPrintAsJSON(_oldProject) + ") -> OK");
+		if (! _pm.getCreatedBy().equalsIgnoreCase(project.getCreatedBy())) {
+			throw new NotAllowedException("project<" + projId + ">: it is not allowed to change createBy on the client.");
+		}
+		_pm.setTitle(project.getTitle());
+		_pm.setDescription(project.getDescription());
+		_pm.setModifiedAt(new Date());
+		_pm.setModifiedBy("DUMMY_USER");
+		_wttProject.setModel(_pm);
+		projectIndex.put(projId, _wttProject);
+		logger.info("updateProject(" + compId + ", " + projId + ") -> " + PrettyPrinter.prettyPrintAsJSON(_pm));
 		if (isPersistent) {
 			exportJson(companyIndex.values());
 		}
-		return _oldProject.getProjectModel();
+		return _pm;
 	}
 
 	@Override
 	public void deleteProject(
 		String compId, 
 		String projId
-	) throws NotFoundException {
+	) throws NotFoundException, InternalServerErrorException {
 		WttCompany _company = readWttCompany(compId);
 		WttProject _project = readWttProject(projId);
 		
@@ -365,7 +407,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		readWttProject(projId); 	// validate existence of parent project
 		ArrayList<ProjectModel> _projects = new ArrayList<ProjectModel>();
 		for (WttProject _p : readWttProject(projId).getProjects()) {
-			_projects.add(_p.getProjectModel());
+			_projects.add(_p.getModel());
 		}
 		Collections.sort(_projects, ProjectModel.ProjectComparator);
 		logger.info("listSubprojects(" + projId + ") -> " + _projects.size()
@@ -378,15 +420,20 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			String compId, 
 			String projId,
 			ProjectModel project) 
-					throws DuplicateException 
+					throws DuplicateException, NotFoundException, ValidationException
 	{
 		readWttCompany(compId);  	// validate existence of company
-		readWttProject(projId).addProject(createWttProject(project));
-		logger.info("createSubproject(" + compId + ", " + projId + ", " + PrettyPrinter.prettyPrintAsJSON(project) + ")");
+		WttProject _parentProject = readWttProject(projId);
+		WttProject _subProject = createWttProject(project);
+		ProjectModel _pm = _subProject.getModel();
+		projectIndex.put(_pm.getId(), _subProject);
+		_parentProject.addProject(_subProject);
+
+		logger.info("createSubproject(" + compId + ", " + projId + ") -> " + PrettyPrinter.prettyPrintAsJSON(_pm));
 		if (isPersistent) {
 			exportJson(companyIndex.values());
 		}
-		return project;
+		return _pm;
 	}
 
 	@Override
@@ -398,7 +445,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	{
 		readWttCompany(compId);  	// validate existence of company
 		readWttProject(projId); 	// validate existence of parent project
-		ProjectModel _p = readWttProject(subprojId).getProjectModel();
+		ProjectModel _p = readWttProject(subprojId).getModel();
 		logger.info("readSubproject(" + subprojId + ") -> "
 				+ PrettyPrinter.prettyPrintAsJSON(_p));
 		return _p;
@@ -409,19 +456,30 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			String compId, 
 			String projId,
 			String subprojId, 
-			ProjectModel project) 
-					throws NotFoundException 
+			ProjectModel subproject) 
+					throws NotFoundException, NotAllowedException
 	{
 		readWttCompany(compId);  	// validate existence of company
 		readWttProject(projId); 	// validate existence of parent project
-		WttProject _p = readWttProject(subprojId);
-		_p.setTitle(project.getTitle());
-		_p.setDescription(project.getDescription());
-		logger.info("updateSubproject(" + compId + ", " + PrettyPrinter.prettyPrintAsJSON(_p) + ") -> OK");
+		WttProject _wttSubProject = readWttProject(subprojId);
+		ProjectModel _pm = _wttSubProject.getModel();	
+		if (! _pm.getCreatedAt().equals(subproject.getCreatedAt())) {
+			throw new NotAllowedException("subproject<" + projId + ">: it is not allowed to change createAt on the client.");
+		}
+		if (! _pm.getCreatedBy().equalsIgnoreCase(subproject.getCreatedBy())) {
+			throw new NotAllowedException("subproject<" + projId + ">: it is not allowed to change createBy on the client.");
+		}
+		_pm.setTitle(subproject.getTitle());
+		_pm.setDescription(subproject.getDescription());
+		_pm.setModifiedAt(new Date());
+		_pm.setModifiedBy("DUMMY_USER");
+		_wttSubProject.setModel(_pm);
+		projectIndex.put(subprojId, _wttSubProject);
+		logger.info("updateSubProject(" + compId + ", " + projId + ", " + subprojId + ") -> " + PrettyPrinter.prettyPrintAsJSON(_pm));
 		if (isPersistent) {
 			exportJson(companyIndex.values());
 		}
-		return _p.getProjectModel();
+		return _pm;
 	}
 
 	@Override
@@ -473,20 +531,22 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	// it does not create a new resource
 	// the idea is to get (and administer) a resource in a separate service (e.g. AddressBook)
 	@Override
-	public String addResource(
+	public ResourceRefModel addResource(
 			String compId,
 			String projId, 
 			ResourceRefModel resourceRef)
-					throws NotFoundException, DuplicateException {
+					throws NotFoundException, DuplicateException, ValidationException {
 		readWttCompany(compId);		// verify existence of compId
 		WttProject _p = readWttProject(projId);
-		// verify the validity of the referenced resourceId
+		// TODO: verify the validity of the referenced resourceId
+		/*
 		String _rid = resourceRef.getResourceId();
 		if (_rid == null || _rid == "") {
 			throw new NotFoundException("a resourceRef with empty or null id is not valid, because its resource can not be found");
 			// TODO: check whether the referenced resource exists -> NotFoundException
 			// TODO: verify firstName and lastName (these attributes are only cached from Resource)
 		}
+		*/
 		String _id = resourceRef.getId();
 		if (_id == null || _id == "") {
 			_id = UUID.randomUUID().toString();
@@ -502,9 +562,15 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			}
 		} 
 		resourceRef.setId(_id);
-		resourceIndex.put(resourceRef.getId(), resourceRef);
+		Date _date = new Date();
+		resourceRef.setCreatedAt(_date);
+		resourceRef.setCreatedBy("DUMMY_USER");
+		resourceRef.setModifiedAt(_date);
+		resourceRef.setModifiedBy("DUMMY_USER");
+
+		resourceIndex.put(_id, resourceRef);
 		_p.addResource(resourceRef);
-		return _id;
+		return resourceRef;
 	}
 	
 	@Override
@@ -512,13 +578,16 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			String compId,
 			String projId, 
 			String resourceId)
-					throws NotFoundException {
+					throws NotFoundException, InternalServerErrorException {
 		readWttCompany(compId);		// verify existence of compId
 		WttProject _p = readWttProject(projId);
 		if (! _p.removeResource(resourceId)) {
 			throw new NotFoundException("resource <" + resourceId + "> was not found in project <" + projId + ">.");
 		}
-		resourceIndex.remove(resourceId);
+		if (resourceIndex.remove(resourceId) == null) {
+			throw new InternalServerErrorException("resource <" + resourceId
+					+ "> can not be removed, because it was not in the index.");
+		}
 		if (isPersistent) {
 			exportJson(companyIndex.values());
 		}
@@ -534,7 +603,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	 */
 	private void indexProjectRecursively(
 			WttProject project) {
-		projectIndex.put(project.getProjectModel().getId(), project);
+		projectIndex.put(project.getModel().getId(), project);
 		for (WttProject _childProject : project.getProjects()) {
 			indexProjectRecursively(_childProject);
 		}
@@ -553,8 +622,8 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		if (childProjects != null) {
 		for (WttProject _project : childProjects) {
 			removeProjectsFromIndexRecursively(_project.getProjects());
-			if ((projectIndex.remove(_project.getProjectModel().getId())) == null) {
-				throw new InternalServerErrorException("project <" + _project.getProjectModel().getId()
+			if ((projectIndex.remove(_project.getModel().getId())) == null) {
+				throw new InternalServerErrorException("project <" + _project.getModel().getId()
 						+ "> can not be removed, because it does not exist in the index.");
 			};
 		}

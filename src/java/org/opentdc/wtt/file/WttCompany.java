@@ -6,19 +6,19 @@ import java.util.List;
 import org.opentdc.wtt.CompanyModel;
 
 public class WttCompany {
-	private CompanyModel companyModel;
+	private CompanyModel model;
 	private ArrayList<WttProject> projects;
 
 	public WttCompany() {
 		projects = new ArrayList<WttProject>();
 	}
 	
-	public CompanyModel getCompanyModel() {
-		return companyModel;
+	public CompanyModel getModel() {
+		return model;
 	}
 	
-	public void setCompanyModel(CompanyModel companyModel) {
-		this.companyModel = companyModel;
+	public void setModel(CompanyModel companyModel) {
+		this.model = companyModel;
 	}
 	
 	public List<WttProject> getProjects() {
@@ -35,13 +35,5 @@ public class WttCompany {
 	
 	public boolean removeProject(WttProject p) {
 		return this.projects.remove(p);
-	}
-	
-	public void setTitle(String title) {
-		companyModel.setTitle(title);
-	}
-
-	public void setDescription(String description) {
-		companyModel.setDescription(description);
 	}
 }

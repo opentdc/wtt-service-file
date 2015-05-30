@@ -6,7 +6,7 @@ import org.opentdc.wtt.ProjectModel;
 import org.opentdc.wtt.ResourceRefModel;
 
 public class WttProject {
-	ProjectModel projectModel;
+	ProjectModel model;
 	ArrayList<WttProject> projects;
 	ArrayList<ResourceRefModel> resources;
 
@@ -15,12 +15,12 @@ public class WttProject {
 		resources = new ArrayList<ResourceRefModel>();
 	}
 
-	public ProjectModel getProjectModel() {
-		return projectModel;
+	public ProjectModel getModel() {
+		return model;
 	}
 
-	public void setProjectModel(ProjectModel projectModel) {
-		this.projectModel = projectModel;
+	public void setModel(ProjectModel projectModel) {
+		this.model = projectModel;
 	}
 
 	public List<WttProject> getProjects() {
@@ -63,12 +63,4 @@ public class WttProject {
 		}
 		return false;
 	}
-	
-	public void setTitle(String title) {
-		projectModel.setTitle(title);
-	}
-	public void setDescription(String desc) {
-		projectModel.setDescription(desc);
-	}
-
 }
