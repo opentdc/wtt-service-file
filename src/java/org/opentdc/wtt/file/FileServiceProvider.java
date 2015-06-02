@@ -44,6 +44,7 @@ import org.opentdc.util.PrettyPrinter;
 import org.opentdc.file.AbstractFileServiceProvider;
 import org.opentdc.wtt.CompanyModel;
 import org.opentdc.wtt.ProjectModel;
+import org.opentdc.wtt.ProjectTreeNodeModel;
 import org.opentdc.wtt.ResourceRefModel;
 import org.opentdc.wtt.ServiceProvider;
 
@@ -231,6 +232,36 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		if (isPersistent) {
 			exportJson(companyIndex.values());
 		}
+	}
+	
+	@Override
+	public ProjectTreeNodeModel readAsTree(
+			String id)
+			throws NotFoundException 
+	{
+		WttCompany _c = readWttCompany(id);
+		ProjectTreeNodeModel _projectTree = new ProjectTreeNodeModel();
+		_projectTree.setId(id);
+		_projectTree.setTitle(_c.getModel().getTitle());
+		for (WttProject _p : _c.getProjects()) {
+			_projectTree.addProject(convertTree(_p));
+		}
+		logger.info("readAsTree(" + id + ") -> " + PrettyPrinter.prettyPrintAsJSON(_projectTree));
+		return _projectTree;
+	}
+	
+	private ProjectTreeNodeModel convertTree(WttProject p) {
+		ProjectTreeNodeModel _node = new ProjectTreeNodeModel();
+		_node.setId(p.getModel().getId());
+		_node.setTitle(p.getModel().getTitle());
+		for (WttProject _p : p.getProjects()) {
+			_node.addProject(convertTree(_p));
+		}
+		for (ResourceRefModel _resource : p.getResources()) {
+			_node.addResource(_resource.getId());
+		}
+		logger.info("convertTree(" + p.getModel().getId() + ") -> " + PrettyPrinter.prettyPrintAsJSON(_node));
+		return _node;
 	}
 
 	/******************************** project *****************************************/
