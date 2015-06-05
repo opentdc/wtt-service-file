@@ -27,10 +27,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
@@ -61,9 +61,9 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		super(context, prefix);
 		if (companyIndex == null) {
 			// initialize the indexes
-			companyIndex = new HashMap<String, WttCompany>();
-			projectIndex = new HashMap<String, WttProject>();
-			resourceIndex = new HashMap<String, ResourceRefModel>();
+			companyIndex = new ConcurrentHashMap<String, WttCompany>();
+			projectIndex = new ConcurrentHashMap<String, WttProject>();
+			resourceIndex = new ConcurrentHashMap<String, ResourceRefModel>();
 			
 			List<WttCompany> _companies = importJson();
 			
@@ -75,10 +75,10 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 				}
 			}
 
-			logger.info("added " 
+			logger.info("indexed " 
 					+ companyIndex.size() + " Companies, "
 					+ projectIndex.size() + " Projects, "
-					+ resourceIndex.size() + " Resources");
+					+ resourceIndex.size() + " Resources.");
 		}
 	}
 
@@ -95,14 +95,20 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		int position, 
 		int size
 	) {
-		// Collections.sort(companies, CompanyModel.CompanyComparator);
-		ArrayList<CompanyModel> _companyModels = new ArrayList<CompanyModel>();
-		for (WttCompany _c : companyIndex.values()) {
-			logger.info(PrettyPrinter.prettyPrintAsJSON(_c.getModel()));
-			_companyModels.add(_c.getModel());
+		ArrayList<CompanyModel> _companies = new ArrayList<CompanyModel>();
+		for (WttCompany _wttc : companyIndex.values()) {
+			_companies.add(_wttc.getModel());
 		}
-		logger.info("listCompanies() -> " + _companyModels.size() + " companies");
-		return _companyModels;
+		Collections.sort(_companies, CompanyModel.CompanyComparator);
+		ArrayList<CompanyModel> _selection = new ArrayList<CompanyModel>();
+		for (int i = 0; i < _companies.size(); i++) {
+			if (i >= position && i < (position + size)) {
+				_selection.add(_companies.get(i));
+			}			
+		}
+		logger.info("list(<" + query + ">, <" + queryType + 
+				">, <" + position + ">, <" + size + ">) -> " + _selection.size() + " companies.");
+		return _selection;
 	}
 
 	/**
@@ -284,14 +290,20 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			int size
 	) {
 		ArrayList<ProjectModel> _projects = new ArrayList<ProjectModel>();
-		WttCompany _c = readWttCompany(compId);
-		for (WttProject _p : _c.getProjects()) {
-			_projects.add(_p.getModel());
+		for (WttProject _wttp : readWttCompany(compId).getProjects()) {
+			_projects.add(_wttp.getModel());
 		}
 		Collections.sort(_projects, ProjectModel.ProjectComparator);
-		logger.info("listProjects(" + compId + ") -> " + _projects.size()
+		ArrayList<ProjectModel> _selection = new ArrayList<ProjectModel>();
+		for (int i = 0; i < _projects.size(); i++) {
+			if (i >= position && i < (position + size)) {
+				_selection.add(_projects.get(i));
+			}
+		}
+		logger.info("listProjects(<" + compId + ">, <" + query + ">, <" + queryType + 
+				">, <" + position + ">, <" + size + ">) -> " + _selection.size()
 				+ " values");
-		return _projects;
+		return _selection;
 	}
 	
 	@Override
@@ -435,15 +447,20 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			int size) 
 	{
 		readWttCompany(compId);  	// validate existence of company
-		readWttProject(projId); 	// validate existence of parent project
-		ArrayList<ProjectModel> _projects = new ArrayList<ProjectModel>();
-		for (WttProject _p : readWttProject(projId).getProjects()) {
-			_projects.add(_p.getModel());
+		ArrayList<ProjectModel> _subprojects = new ArrayList<ProjectModel>();
+		for (WttProject _wttp : readWttProject(projId).getProjects()) {
+			_subprojects.add(_wttp.getModel());
 		}
-		Collections.sort(_projects, ProjectModel.ProjectComparator);
-		logger.info("listSubprojects(" + projId + ") -> " + _projects.size()
-				+ " values");
-		return _projects;
+		Collections.sort(_subprojects, ProjectModel.ProjectComparator);
+		ArrayList<ProjectModel> _selection = new ArrayList<ProjectModel>();
+		for (int i = 0; i < _subprojects.size(); i++) {
+			if (i >= position && i < (position + size)) {
+				_selection.add(_subprojects.get(i));
+			}
+		}
+		logger.info("listProjects(<" + compId + ">, <" + projId + ">, <"+ query + ">, <" + queryType + 
+				">, <" + position + ">, <" + size + ">) -> " + _selection.size() + " values");
+		return _selection;
 	}
 
 	@Override
@@ -552,10 +569,17 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			int size
 	) {
 		readWttCompany(compId);		// verify existence of compId
-		WttProject _p = readWttProject(projId);
-		logger.info("listResources(" + projId + ") -> ");
-		logger.info(PrettyPrinter.prettyPrintAsJSON(_p.getResources()));
-		return _p.getResources();
+		List<ResourceRefModel> _resources = readWttProject(projId).getResources();
+		Collections.sort(_resources, ResourceRefModel.ResourceRefComparator);
+		ArrayList<ResourceRefModel> _selection = new ArrayList<ResourceRefModel>();
+		for (int i = 0; i < _resources.size(); i++) {
+			if (i >= position && i < (position + size)) {
+				_selection.add(_resources.get(i));
+			}
+		}		
+		logger.info("listResources(" + compId + ", " + projId + ", " + query + ", " + 
+				queryType + ", " + position + ", " + size + ") -> " + _selection.size()	+ " values");
+		return _selection;
 	}
 
 	// this _adds_ (or creates) an existing resourceRef to the resource list in project projId.
