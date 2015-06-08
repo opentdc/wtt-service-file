@@ -137,6 +137,10 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 						"> contains an ID generated on the client. This is not allowed.");
 			}
 		}
+		if (company.getTitle() == null || company.getTitle().length() == 0) {
+			throw new ValidationException("company <" + _id + 
+					"> must contain a valid title.");
+		}
 		company.setId(_id);
 		Date _date = new Date();
 		company.setCreatedAt(_date);
