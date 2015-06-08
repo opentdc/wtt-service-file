@@ -37,7 +37,6 @@ import javax.servlet.ServletContext;
 
 import org.opentdc.service.exception.DuplicateException;
 import org.opentdc.service.exception.InternalServerErrorException;
-import org.opentdc.service.exception.NotAllowedException;
 import org.opentdc.service.exception.NotFoundException;
 import org.opentdc.service.exception.ValidationException;
 import org.opentdc.util.PrettyPrinter;
@@ -199,15 +198,15 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	public CompanyModel updateCompany(
 		String compId,
 		CompanyModel newCompany
-	) throws NotFoundException, NotAllowedException
+	) throws NotFoundException, ValidationException
 	{
 		WttCompany _c = readWttCompany(compId);
 		CompanyModel _cm = _c.getModel();
 		if (! _cm.getCreatedAt().equals(newCompany.getCreatedAt())) {
-			throw new NotAllowedException("company<" + compId + ">: it is not allowed to change createAt on the client.");
+			throw new ValidationException("company<" + compId + ">: it is not allowed to change createAt on the client.");
 		}
 		if (! _cm.getCreatedBy().equalsIgnoreCase(newCompany.getCreatedBy())) {
-			throw new NotAllowedException("company<" + compId + ">: it is not allowed to change createBy on the client.");
+			throw new ValidationException("company<" + compId + ">: it is not allowed to change createBy on the client.");
 		}
 		_cm.setTitle(newCompany.getTitle());
 		_cm.setDescription(newCompany.getDescription());
@@ -381,15 +380,15 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			String compId,
 			String projId,
 			ProjectModel project
-	) throws NotFoundException, NotAllowedException {
+	) throws NotFoundException, ValidationException {
 		readWttCompany(compId);
 		WttProject _wttProject = readWttProject(projId);
 		ProjectModel _pm = _wttProject.getModel();
 		if (! _pm.getCreatedAt().equals(project.getCreatedAt())) {
-			throw new NotAllowedException("project<" + projId + ">: it is not allowed to change createAt on the client.");
+			throw new ValidationException("project<" + projId + ">: it is not allowed to change createAt on the client.");
 		}
 		if (! _pm.getCreatedBy().equalsIgnoreCase(project.getCreatedBy())) {
-			throw new NotAllowedException("project<" + projId + ">: it is not allowed to change createBy on the client.");
+			throw new ValidationException("project<" + projId + ">: it is not allowed to change createBy on the client.");
 		}
 		_pm.setTitle(project.getTitle());
 		_pm.setDescription(project.getDescription());
@@ -505,17 +504,17 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			String projId,
 			String subprojId, 
 			ProjectModel subproject) 
-					throws NotFoundException, NotAllowedException
+					throws NotFoundException, ValidationException
 	{
 		readWttCompany(compId);  	// validate existence of company
 		readWttProject(projId); 	// validate existence of parent project
 		WttProject _wttSubProject = readWttProject(subprojId);
 		ProjectModel _pm = _wttSubProject.getModel();	
 		if (! _pm.getCreatedAt().equals(subproject.getCreatedAt())) {
-			throw new NotAllowedException("subproject<" + projId + ">: it is not allowed to change createAt on the client.");
+			throw new ValidationException("subproject<" + projId + ">: it is not allowed to change createAt on the client.");
 		}
 		if (! _pm.getCreatedBy().equalsIgnoreCase(subproject.getCreatedBy())) {
-			throw new NotAllowedException("subproject<" + projId + ">: it is not allowed to change createBy on the client.");
+			throw new ValidationException("subproject<" + projId + ">: it is not allowed to change createBy on the client.");
 		}
 		_pm.setTitle(subproject.getTitle());
 		_pm.setDescription(subproject.getDescription());
