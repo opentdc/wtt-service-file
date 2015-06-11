@@ -344,6 +344,11 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 						"> contains an ID generated on the client. This is not allowed.");
 			}
 		}
+		if (project.getTitle() == null || project.getTitle().length() == 0) {
+			throw new ValidationException("project <" + project.getId() +
+					"> must have a valid title.");
+		}
+
 		project.setId(_id);
 		Date _date = new Date();
 		project.setCreatedAt(_date);
@@ -619,6 +624,19 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 						"> contains an ID generated on the client. This is not allowed.");
 			}
 		} 
+		if (resourceRef.getResourceId() == null || resourceRef.getResourceId().length() == 0) {
+			throw new ValidationException("resourceRef <" + resourceRef.getId() +
+					"> must have a valid resourceId.");
+		}
+		if (resourceRef.getFirstName() == null || resourceRef.getFirstName().length() == 0) {
+			throw new ValidationException("resourceRef <" + resourceRef.getId() +
+					"> must have a valid firstName.");
+		}
+		if (resourceRef.getLastName() == null || resourceRef.getLastName().length() == 0) {
+			throw new ValidationException("resourceRef <" + resourceRef.getId() +
+					"> must have a valid lastName.");
+		}
+		
 		resourceRef.setId(_id);
 		Date _date = new Date();
 		resourceRef.setCreatedAt(_date);
