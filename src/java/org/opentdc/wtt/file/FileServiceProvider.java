@@ -207,10 +207,12 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		WttCompany _c = readWttCompany(compId);
 		CompanyModel _cm = _c.getModel();
 		if (! _cm.getCreatedAt().equals(newCompany.getCreatedAt())) {
-			throw new ValidationException("company<" + compId + ">: it is not allowed to change createAt on the client.");
+			logger.warning("company<" + compId + ">: ignoring createAt value <" + 
+					newCompany.getCreatedAt().toString() + "> because it was set on the client.");
 		}
 		if (! _cm.getCreatedBy().equalsIgnoreCase(newCompany.getCreatedBy())) {
-			throw new ValidationException("company<" + compId + ">: it is not allowed to change createBy on the client.");
+			logger.warning("company<" + compId + ">: ignoring createBy value <" +
+					newCompany.getCreatedBy() + "> because it was set on the client.");
 		}
 		_cm.setTitle(newCompany.getTitle());
 		_cm.setDescription(newCompany.getDescription());
@@ -394,10 +396,12 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		WttProject _wttProject = readWttProject(projId);
 		ProjectModel _pm = _wttProject.getModel();
 		if (! _pm.getCreatedAt().equals(project.getCreatedAt())) {
-			throw new ValidationException("project<" + projId + ">: it is not allowed to change createAt on the client.");
+			logger.warning("project<" + projId + ">: ignoring createAt value <" 
+					+ project.getCreatedAt().toString() + "> because it was set on the client.");
 		}
 		if (! _pm.getCreatedBy().equalsIgnoreCase(project.getCreatedBy())) {
-			throw new ValidationException("project<" + projId + ">: it is not allowed to change createBy on the client.");
+			logger.warning("project<" + projId + ">: ignoring createBy value <"
+					+ project.getCreatedBy() + "> because it was set on the client.");
 		}
 		_pm.setTitle(project.getTitle());
 		_pm.setDescription(project.getDescription());
@@ -520,10 +524,12 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		WttProject _wttSubProject = readWttProject(subprojId);
 		ProjectModel _pm = _wttSubProject.getModel();	
 		if (! _pm.getCreatedAt().equals(subproject.getCreatedAt())) {
-			throw new ValidationException("subproject<" + projId + ">: it is not allowed to change createAt on the client.");
+			logger.warning("subproject<" + projId + ">: ignoring createAt value <" + 
+					subproject.getCreatedAt().toString() + "> because it was set on the client.");
 		}
 		if (! _pm.getCreatedBy().equalsIgnoreCase(subproject.getCreatedBy())) {
-			throw new ValidationException("subproject<" + projId + ">: it is not allowed to change createBy on the client.");
+			logger.warning("subproject<" + projId + ">: ignoring createBy value <" +
+					subproject.getCreatedBy() + "> because it was set on the client.");
 		}
 		_pm.setTitle(subproject.getTitle());
 		_pm.setDescription(subproject.getDescription());
