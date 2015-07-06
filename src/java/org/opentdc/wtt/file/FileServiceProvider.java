@@ -137,16 +137,20 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 						"> contains an ID generated on the client. This is not allowed.");
 			}
 		}
-		if (company.getTitle() == null || company.getTitle().length() == 0) {
+		if (company.getTitle() == null || company.getTitle().isEmpty()) {
 			throw new ValidationException("company <" + _id + 
 					"> must contain a valid title.");
+		}
+		if (company.getOrgId() == null || company.getOrgId().isEmpty()) {
+			throw new ValidationException("company <" + _id + 
+					"> must contain a contactId.");
 		}
 		company.setId(_id);
 		Date _date = new Date();
 		company.setCreatedAt(_date);
-		company.setCreatedBy("DUMMY_USER");
+		company.setCreatedBy(getPrincipal());
 		company.setModifiedAt(_date);
-		company.setModifiedBy("DUMMY_USER");
+		company.setModifiedBy(getPrincipal());
 		WttCompany _newCompany = new WttCompany();
 		_newCompany.setModel(company);
 		companyIndex.put(_id, _newCompany);
@@ -216,8 +220,9 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		}
 		_cm.setTitle(newCompany.getTitle());
 		_cm.setDescription(newCompany.getDescription());
+		_cm.setOrgId(newCompany.getOrgId());
 		_cm.setModifiedAt(new Date());
-		_cm.setModifiedBy("DUMMY_USER");
+		_cm.setModifiedBy(getPrincipal());
 		_c.setModel(_cm);
 		companyIndex.put(compId, _c);
 		logger.info("updateCompany(" + compId + ") -> " + PrettyPrinter.prettyPrintAsJSON(_cm));
@@ -354,9 +359,9 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		project.setId(_id);
 		Date _date = new Date();
 		project.setCreatedAt(_date);
-		project.setCreatedBy("DUMMY_USER");
+		project.setCreatedBy(getPrincipal());
 		project.setModifiedAt(_date);
-		project.setModifiedBy("DUMMY_USER");
+		project.setModifiedBy(getPrincipal());
 
 		WttProject _newWttProject = new WttProject();
 		_newWttProject.setModel(project);
@@ -406,7 +411,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		_pm.setTitle(project.getTitle());
 		_pm.setDescription(project.getDescription());
 		_pm.setModifiedAt(new Date());
-		_pm.setModifiedBy("DUMMY_USER");
+		_pm.setModifiedBy(getPrincipal());
 		_wttProject.setModel(_pm);
 		projectIndex.put(projId, _wttProject);
 		logger.info("updateProject(" + compId + ", " + projId + ") -> " + PrettyPrinter.prettyPrintAsJSON(_pm));
@@ -534,7 +539,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		_pm.setTitle(subproject.getTitle());
 		_pm.setDescription(subproject.getDescription());
 		_pm.setModifiedAt(new Date());
-		_pm.setModifiedBy("DUMMY_USER");
+		_pm.setModifiedBy(getPrincipal());
 		_wttSubProject.setModel(_pm);
 		projectIndex.put(subprojId, _wttSubProject);
 		logger.info("updateSubProject(" + compId + ", " + projId + ", " + subprojId + ") -> " + PrettyPrinter.prettyPrintAsJSON(_pm));
@@ -646,9 +651,9 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		resourceRef.setId(_id);
 		Date _date = new Date();
 		resourceRef.setCreatedAt(_date);
-		resourceRef.setCreatedBy("DUMMY_USER");
+		resourceRef.setCreatedBy(getPrincipal());
 		resourceRef.setModifiedAt(_date);
-		resourceRef.setModifiedBy("DUMMY_USER");
+		resourceRef.setModifiedBy(getPrincipal());
 
 		resourceIndex.put(_id, resourceRef);
 		_p.addResource(resourceRef);
