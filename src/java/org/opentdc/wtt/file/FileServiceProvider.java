@@ -35,6 +35,7 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
 
+import org.opentdc.resources.ResourceModel;
 import org.opentdc.service.exception.DuplicateException;
 import org.opentdc.service.exception.InternalServerErrorException;
 import org.opentdc.service.exception.NotFoundException;
@@ -217,6 +218,14 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		if (! _cm.getCreatedBy().equalsIgnoreCase(newCompany.getCreatedBy())) {
 			logger.warning("company<" + compId + ">: ignoring createBy value <" +
 					newCompany.getCreatedBy() + "> because it was set on the client.");
+		}
+		if (newCompany.getTitle() == null || newCompany.getTitle().isEmpty()) {
+			throw new ValidationException("company <" + compId + 
+					"> must contain a valid title.");
+		}
+		if (newCompany.getOrgId() == null || newCompany.getOrgId().isEmpty()) {
+			throw new ValidationException("company <" + compId + 
+					"> must contain a contactId.");
 		}
 		_cm.setTitle(newCompany.getTitle());
 		_cm.setDescription(newCompany.getDescription());
@@ -408,6 +417,10 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			logger.warning("project<" + projId + ">: ignoring createBy value <"
 					+ project.getCreatedBy() + "> because it was set on the client.");
 		}
+		if (project.getTitle() == null || project.getTitle().length() == 0) {
+			throw new ValidationException("project <" + project.getId() +
+					"> must have a valid title.");
+		}
 		_pm.setTitle(project.getTitle());
 		_pm.setDescription(project.getDescription());
 		_pm.setModifiedAt(new Date());
@@ -579,7 +592,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 
 	/******************************** resourceRef *****************************************/
 	@Override
-	public List<ResourceRefModel> listResources(
+	public List<ResourceRefModel> listResourceRefs(
 			String compId,
 			String projId,
 			String query, 
@@ -596,7 +609,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 				_selection.add(_resources.get(i));
 			}
 		}		
-		logger.info("listResources(" + compId + ", " + projId + ", " + query + ", " + 
+		logger.info("listResourceRefs(" + compId + ", " + projId + ", " + query + ", " + 
 				queryType + ", " + position + ", " + size + ") -> " + _selection.size()	+ " values");
 		return _selection;
 	}
@@ -605,7 +618,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	// it does not create a new resource
 	// the idea is to get (and administer) a resource in a separate service (e.g. AddressBook)
 	@Override
-	public ResourceRefModel addResource(
+	public ResourceRefModel addResourceRef(
 			String compId,
 			String projId, 
 			ResourceRefModel resourceRef)
@@ -639,14 +652,8 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 			throw new ValidationException("resourceRef <" + resourceRef.getId() +
 					"> must have a valid resourceId.");
 		}
-		if (resourceRef.getFirstName() == null || resourceRef.getFirstName().length() == 0) {
-			throw new ValidationException("resourceRef <" + resourceRef.getId() +
-					"> must have a valid firstName.");
-		}
-		if (resourceRef.getLastName() == null || resourceRef.getLastName().length() == 0) {
-			throw new ValidationException("resourceRef <" + resourceRef.getId() +
-					"> must have a valid lastName.");
-		}
+		ResourceModel _resourceModel = getResourceModel(resourceRef.getResourceId());
+		resourceRef.setResourceName(_resourceModel.getName());
 		
 		resourceRef.setId(_id);
 		Date _date = new Date();
@@ -660,8 +667,13 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		return resourceRef;
 	}
 	
+	private ResourceModel getResourceModel(
+			String resourceId) {
+		return org.opentdc.resources.file.FileServiceProvider.getResourceModel(resourceId);
+	}
+		
 	@Override
-	public void removeResource(
+	public void removeResourceRef(
 			String compId,
 			String projId, 
 			String resourceId)
@@ -678,7 +690,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		if (isPersistent) {
 			exportJson(companyIndex.values());
 		}
-		logger.info("removeResource(" + projId + ", " + resourceId + ") -> resource removed.");			
+		logger.info("removeResourceRef(" + projId + ", " + resourceId + ") -> resource removed.");			
 	}
 
 	/******************************** utility methods *****************************************/
