@@ -175,10 +175,21 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	public CompanyModel readCompany(
 			String id
 	) throws NotFoundException {
-		CompanyModel _c = readWttCompany(id).getModel();
-		logger.info("readCompany(" + id + ") -> " + PrettyPrinter.prettyPrintAsJSON(_c));
-		return _c;
+		return getCompany(id);
 	}
+	
+	public static CompanyModel getCompany(
+			String id)
+			throws NotFoundException {
+		WttCompany _company = companyIndex.get(id);
+		if (_company == null) {
+			throw new NotFoundException("company <" + id
+					+ "> was not found.");
+		}
+		logger.info("getCompany(" + id + ") -> " + PrettyPrinter.prettyPrintAsJSON(_company.getModel()));
+		return _company.getModel();
+	}
+	
 	
 	private WttCompany readWttCompany(
 			String id
