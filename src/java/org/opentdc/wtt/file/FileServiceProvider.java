@@ -400,7 +400,17 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		return _p;
 	}
 	
-	private WttProject readWttProject(
+	public static ProjectModel getProject(
+			String projId)
+			throws NotFoundException {
+		ProjectModel _model = readWttProject(projId).getModel();
+		logger.info("getProject(" + projId + ") -> " 
+				+ PrettyPrinter.prettyPrintAsJSON(_model));
+		return _model;
+	}
+	
+	
+	private static WttProject readWttProject(
 			String projId)
 				throws NotFoundException {
 		WttProject _p = projectIndex.get(projId);
