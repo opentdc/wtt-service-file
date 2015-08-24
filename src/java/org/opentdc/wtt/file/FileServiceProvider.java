@@ -34,8 +34,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
 
 import org.opentdc.resources.ResourceModel;
+import org.opentdc.service.ServiceUtil;
 import org.opentdc.service.exception.DuplicateException;
 import org.opentdc.service.exception.InternalServerErrorException;
 import org.opentdc.service.exception.NotFoundException;
@@ -121,6 +123,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	 */
 	@Override
 	public CompanyModel createCompany(
+			HttpServletRequest request,
 			CompanyModel company
 	) throws DuplicateException, ValidationException {
 		logger.info("createCompany(" + PrettyPrinter.prettyPrintAsJSON(company) + ")");
@@ -149,9 +152,9 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		company.setId(_id);
 		Date _date = new Date();
 		company.setCreatedAt(_date);
-		company.setCreatedBy(getPrincipal());
+		company.setCreatedBy(ServiceUtil.getPrincipal(request));
 		company.setModifiedAt(_date);
-		company.setModifiedBy(getPrincipal());
+		company.setModifiedBy(ServiceUtil.getPrincipal(request));
 		WttCompany _newCompany = new WttCompany();
 		_newCompany.setModel(company);
 		companyIndex.put(_id, _newCompany);
@@ -216,6 +219,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	 */
 	@Override
 	public CompanyModel updateCompany(
+		HttpServletRequest request,
 		String compId,
 		CompanyModel newCompany
 	) throws NotFoundException, ValidationException
@@ -242,7 +246,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		_cm.setDescription(newCompany.getDescription());
 		_cm.setOrgId(newCompany.getOrgId());
 		_cm.setModifiedAt(new Date());
-		_cm.setModifiedBy(getPrincipal());
+		_cm.setModifiedBy(ServiceUtil.getPrincipal(request));
 		_c.setModel(_cm);
 		companyIndex.put(compId, _c);
 		logger.info("updateCompany(" + compId + ") -> " + PrettyPrinter.prettyPrintAsJSON(_cm));
@@ -338,11 +342,12 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	
 	@Override
 	public ProjectModel createProject(
+		HttpServletRequest request,
 		String compId, 
 		ProjectModel newProject
 	) throws DuplicateException, NotFoundException, ValidationException {
 		WttCompany _company = readWttCompany(compId);
-		WttProject _project = createWttProject(newProject);
+		WttProject _project = createWttProject(request, newProject);
 		ProjectModel _pm = _project.getModel();
 		projectIndex.put(_pm.getId(), _project);
 		_company.addProject(_project);
@@ -354,6 +359,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	}
 	
 	private WttProject createWttProject(
+			HttpServletRequest request,
 			ProjectModel project)
 			throws DuplicateException, ValidationException
 	{
@@ -379,9 +385,9 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		project.setId(_id);
 		Date _date = new Date();
 		project.setCreatedAt(_date);
-		project.setCreatedBy(getPrincipal());
+		project.setCreatedBy(ServiceUtil.getPrincipal(request));
 		project.setModifiedAt(_date);
-		project.setModifiedBy(getPrincipal());
+		project.setModifiedBy(ServiceUtil.getPrincipal(request));
 
 		WttProject _newWttProject = new WttProject();
 		_newWttProject.setModel(project);
@@ -423,6 +429,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 
 	@Override
 	public ProjectModel updateProject(
+			HttpServletRequest request,
 			String compId,
 			String projId,
 			ProjectModel project
@@ -445,7 +452,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		_pm.setTitle(project.getTitle());
 		_pm.setDescription(project.getDescription());
 		_pm.setModifiedAt(new Date());
-		_pm.setModifiedBy(getPrincipal());
+		_pm.setModifiedBy(ServiceUtil.getPrincipal(request));
 		_wttProject.setModel(_pm);
 		projectIndex.put(projId, _wttProject);
 		logger.info("updateProject(" + compId + ", " + projId + ") -> " + PrettyPrinter.prettyPrintAsJSON(_pm));
@@ -516,6 +523,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 
 	@Override
 	public ProjectModel createSubproject(
+			HttpServletRequest request,
 			String compId, 
 			String projId,
 			ProjectModel project) 
@@ -523,7 +531,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	{
 		readWttCompany(compId);  	// validate existence of company
 		WttProject _parentProject = readWttProject(projId);
-		WttProject _subProject = createWttProject(project);
+		WttProject _subProject = createWttProject(request, project);
 		ProjectModel _pm = _subProject.getModel();
 		projectIndex.put(_pm.getId(), _subProject);
 		_parentProject.addProject(_subProject);
@@ -552,6 +560,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 
 	@Override
 	public ProjectModel updateSubproject(
+			HttpServletRequest request,
 			String compId, 
 			String projId,
 			String subprojId, 
@@ -573,7 +582,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		_pm.setTitle(subproject.getTitle());
 		_pm.setDescription(subproject.getDescription());
 		_pm.setModifiedAt(new Date());
-		_pm.setModifiedBy(getPrincipal());
+		_pm.setModifiedBy(ServiceUtil.getPrincipal(request));
 		_wttSubProject.setModel(_pm);
 		projectIndex.put(subprojId, _wttSubProject);
 		logger.info("updateSubProject(" + compId + ", " + projId + ", " + subprojId + ") -> " + PrettyPrinter.prettyPrintAsJSON(_pm));
@@ -640,6 +649,7 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 	// the idea is to get (and administer) a resource in a separate service (e.g. AddressBook)
 	@Override
 	public ResourceRefModel addResourceRef(
+			HttpServletRequest request,
 			String compId,
 			String projId, 
 			ResourceRefModel resourceRef)
@@ -679,9 +689,9 @@ public class FileServiceProvider extends AbstractFileServiceProvider<WttCompany>
 		resourceRef.setId(_id);
 		Date _date = new Date();
 		resourceRef.setCreatedAt(_date);
-		resourceRef.setCreatedBy(getPrincipal());
+		resourceRef.setCreatedBy(ServiceUtil.getPrincipal(request));
 		resourceRef.setModifiedAt(_date);
-		resourceRef.setModifiedBy(getPrincipal());
+		resourceRef.setModifiedBy(ServiceUtil.getPrincipal(request));
 
 		resourceIndex.put(_id, resourceRef);
 		_p.addResource(resourceRef);
